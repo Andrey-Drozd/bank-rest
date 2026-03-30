@@ -1,0 +1,932 @@
+openapi: 3.0.3
+info:
+  title: Bank Cards Management API
+  version: 1.0.0
+  description: |
+    REST API для управления банковскими картами, пользователями и переводами между своими картами.
+
+    Основные возможности:
+      - JWT-аутентификация и role-based access (`ADMIN`, `USER`)
+      - управление картами
+      - переводы между своими картами
+      - управление пользователями для администратора
+      - пагинация, фильтрация, валидация и единый формат ошибок
+servers:
+  - url: http://localhost:8080/api
+    description: Local environment
+tags:
+  - name: Auth
+    description: Регистрация, логин и текущий пользователь
+  - name: Cards
+    description: Управление банковскими картами
+  - name: Transfers
+    description: Переводы между своими картами и история операций
+  - name: Users
+    description: Административное управление пользователями
+security:
+  - bearerAuth: []
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Логин пользователя
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              userLogin:
+                value:
+                  email: user@bankcards.local
+                  password: password3
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Регистрация нового пользователя
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              registerUser:
+                value:
+                  username: john.smith
+                  email: john.smith@example.com
+                  firstName: John
+                  lastName: Smith
+                  password: strongPass123
+      responses:
+        '200':
+          description: Пользователь создан и сразу аутентифицирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Получить профиль текущего пользователя
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Профиль текущего пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /cards:
+    post:
+      tags: [Cards]
+      summary: Создать карту
+      description: Доступно только пользователю с ролью `ADMIN`.
+      operationId: createCard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCardRequest'
+      responses:
+        '200':
+          description: Карта создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+    get:
+      tags: [Cards]
+      summary: Получить список всех карт
+      description: Доступно только пользователю с ролью `ADMIN`.
+      operationId: getAllCards
+      parameters:
+        - $ref: '#/components/parameters/OwnerIdParam'
+        - $ref: '#/components/parameters/CardQueryParam'
+        - $ref: '#/components/parameters/CardStatusParam'
+        - $ref: '#/components/parameters/BlockRequestedParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Страница карт
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardPageResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /cards/{cardId}:
+    get:
+      tags: [Cards]
+      summary: Получить карту по идентификатору
+      description: Доступно только пользователю с ролью `ADMIN`.
+      operationId: getCard
+      parameters:
+        - $ref: '#/components/parameters/CardIdPathParam'
+      responses:
+        '200':
+          description: Данные карты
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      tags: [Cards]
+      summary: Удалить карту
+      description: Доступно только пользователю с ролью `ADMIN`. Карта не удаляется, если по ней уже есть операции.
+      operationId: deleteCard
+      parameters:
+        - $ref: '#/components/parameters/CardIdPathParam'
+      responses:
+        '204':
+          description: Карта удалена
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /cards/{cardId}/activate:
+    patch:
+      tags: [Cards]
+      summary: Активировать карту
+      description: Доступно только пользователю с ролью `ADMIN`.
+      operationId: activateCard
+      parameters:
+        - $ref: '#/components/parameters/CardIdPathParam'
+      responses:
+        '200':
+          description: Карта активирована
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /cards/{cardId}/block:
+    patch:
+      tags: [Cards]
+      summary: Заблокировать карту
+      description: Доступно только пользователю с ролью `ADMIN`.
+      operationId: blockCard
+      parameters:
+        - $ref: '#/components/parameters/CardIdPathParam'
+      responses:
+        '200':
+          description: Карта заблокирована
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /cards/me:
+    get:
+      tags: [Cards]
+      summary: Получить карты текущего пользователя
+      operationId: getMyCards
+      parameters:
+        - $ref: '#/components/parameters/CardQueryParam'
+        - $ref: '#/components/parameters/CardStatusParam'
+        - $ref: '#/components/parameters/BlockRequestedParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Страница карт текущего пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardPageResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /cards/me/{cardId}:
+    get:
+      tags: [Cards]
+      summary: Получить одну карту текущего пользователя
+      operationId: getMyCard
+      parameters:
+        - $ref: '#/components/parameters/CardIdPathParam'
+      responses:
+        '200':
+          description: Данные карты текущего пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /cards/me/{cardId}/balance:
+    get:
+      tags: [Cards]
+      summary: Получить баланс карты текущего пользователя
+      operationId: getMyCardBalance
+      parameters:
+        - $ref: '#/components/parameters/CardIdPathParam'
+      responses:
+        '200':
+          description: Баланс карты
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardBalanceResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /cards/me/{cardId}/block-request:
+    post:
+      tags: [Cards]
+      summary: Запросить блокировку своей карты
+      operationId: requestMyCardBlock
+      parameters:
+        - $ref: '#/components/parameters/CardIdPathParam'
+      responses:
+        '200':
+          description: Запрос на блокировку создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /transfers/me:
+    post:
+      tags: [Transfers]
+      summary: Выполнить перевод между своими картами
+      operationId: createTransfer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransferRequest'
+      responses:
+        '200':
+          description: Перевод выполнен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+    get:
+      tags: [Transfers]
+      summary: Получить историю переводов текущего пользователя
+      operationId: getMyTransfers
+      parameters:
+        - name: cardId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          description: Опциональный фильтр по карте пользователя
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Страница переводов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferPageResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /users:
+    get:
+      tags: [Users]
+      summary: Получить список пользователей
+      description: Доступно только пользователю с ролью `ADMIN`.
+      operationId: getAllUsers
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Поиск по username, email, firstName и lastName
+        - name: enabled
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: deleted
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: role
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/RoleName'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Страница пользователей
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPageResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /users/{userId}:
+    get:
+      tags: [Users]
+      summary: Получить пользователя по идентификатору
+      description: Доступно только пользователю с ролью `ADMIN`.
+      operationId: getUser
+      parameters:
+        - $ref: '#/components/parameters/UserIdPathParam'
+      responses:
+        '200':
+          description: Данные пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    patch:
+      tags: [Users]
+      summary: Обновить пользователя
+      description: |
+        Доступно только пользователю с ролью `ADMIN`.
+        Собственным аккаунтом через административный эндпоинт управлять нельзя.
+      operationId: updateUser
+      parameters:
+        - $ref: '#/components/parameters/UserIdPathParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Пользователь обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+    delete:
+      tags: [Users]
+      summary: Удалить пользователя
+      description: |
+        Доступно только пользователю с ролью `ADMIN`.
+        Пользователь помечается как удалённый и отключается.
+      operationId: deleteUser
+      parameters:
+        - $ref: '#/components/parameters/UserIdPathParam'
+      responses:
+        '204':
+          description: Пользователь помечен как удалённый
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    CardIdPathParam:
+      name: cardId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: Идентификатор карты
+    UserIdPathParam:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: Идентификатор пользователя
+    OwnerIdParam:
+      name: ownerId
+      in: query
+      required: false
+      schema:
+        type: integer
+        format: int64
+      description: Фильтр по владельцу карты
+    CardQueryParam:
+      name: query
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Поиск по masked-номеру карты, username или email владельца
+    CardStatusParam:
+      name: status
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/CardStatus'
+      description: Фильтр по статусу карты
+    BlockRequestedParam:
+      name: blockRequested
+      in: query
+      required: false
+      schema:
+        type: boolean
+      description: Фильтр по признаку запроса блокировки
+    PageParam:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      description: Номер страницы, начиная с 0
+    SizeParam:
+      name: size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+      description: Размер страницы
+
+  responses:
+    ValidationError:
+      description: Ошибка валидации запроса
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    UnauthorizedError:
+      description: Необходима аутентификация или передан неверный токен
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    ForbiddenError:
+      description: Недостаточно прав для выполнения операции
+    NotFoundError:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    ConflictError:
+      description: Бизнес-конфликт
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+
+  schemas:
+    RoleName:
+      type: string
+      enum: [ADMIN, USER]
+    CardStatus:
+      type: string
+      enum: [ACTIVE, BLOCKED, EXPIRED]
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    RegisterRequest:
+      type: object
+      required: [username, email, firstName, lastName, password]
+      properties:
+        username:
+          type: string
+          maxLength: 50
+        email:
+          type: string
+          format: email
+          maxLength: 100
+        firstName:
+          type: string
+          maxLength: 50
+        lastName:
+          type: string
+          maxLength: 50
+        password:
+          type: string
+          minLength: 8
+          maxLength: 100
+
+    AuthResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        token:
+          type: string
+      required: [id, username, email, firstName, lastName, roles, token]
+
+    UserProfileResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+      required: [id, username, email, firstName, lastName, roles]
+
+    CreateCardRequest:
+      type: object
+      required: [ownerId, expirationDate, balance]
+      properties:
+        ownerId:
+          type: integer
+          format: int64
+        expirationDate:
+          type: string
+          format: date
+          description: Дата должна быть в будущем
+        balance:
+          type: number
+          format: decimal
+          minimum: 0
+          example: 1500.00
+
+    CardResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        maskedCardNumber:
+          type: string
+          example: "**** **** **** 1234"
+        ownerId:
+          type: integer
+          format: int64
+        ownerUsername:
+          type: string
+        ownerEmail:
+          type: string
+          format: email
+        expirationDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [ACTIVE, BLOCKED, EXPIRED]
+        balance:
+          type: number
+          format: decimal
+        blockRequested:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        [id, maskedCardNumber, ownerId, ownerUsername, ownerEmail, expirationDate, status, balance, blockRequested, createdAt, updatedAt]
+
+    CardBalanceResponse:
+      type: object
+      properties:
+        cardId:
+          type: integer
+          format: int64
+        maskedCardNumber:
+          type: string
+        balance:
+          type: number
+          format: decimal
+        status:
+          type: string
+          enum: [ACTIVE, BLOCKED, EXPIRED]
+      required: [cardId, maskedCardNumber, balance, status]
+
+    CreateTransferRequest:
+      type: object
+      required: [fromCardId, toCardId, amount]
+      properties:
+        fromCardId:
+          type: integer
+          format: int64
+        toCardId:
+          type: integer
+          format: int64
+        amount:
+          type: number
+          format: decimal
+          exclusiveMinimum: true
+          minimum: 0
+          example: 100.00
+
+    TransferResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        fromCardId:
+          type: integer
+          format: int64
+        fromCardMaskedNumber:
+          type: string
+        toCardId:
+          type: integer
+          format: int64
+        toCardMaskedNumber:
+          type: string
+        amount:
+          type: number
+          format: decimal
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, fromCardId, fromCardMaskedNumber, toCardId, toCardMaskedNumber, amount, createdAt]
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        deleted:
+          type: boolean
+        roles:
+          type: array
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/RoleName'
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        enabled:
+          type: boolean
+        deleted:
+          type: boolean
+        roles:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, username, email, firstName, lastName, enabled, deleted, roles, createdAt, updatedAt]
+
+    ApiErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+        validationErrors:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: string
+      required: [timestamp, status, error, message, path]
+
+    CardPageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        first:
+          type: boolean
+        last:
+          type: boolean
+      required: [content, page, size, totalElements, totalPages, first, last]
+
+    TransferPageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransferResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        first:
+          type: boolean
+        last:
+          type: boolean
+      required: [content, page, size, totalElements, totalPages, first, last]
+
+    UserPageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        first:
+          type: boolean
+        last:
+          type: boolean
+      required: [content, page, size, totalElements, totalPages, first, last]

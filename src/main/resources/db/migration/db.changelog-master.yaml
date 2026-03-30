@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - include:
+      file: db/migration/db.changelog-001-initial-schema.yaml
+  - include:
+      file: db/migration/db.changelog-002-demo-data.yaml
+  - include:
+      file: db/migration/db.changelog-003-card-masked-number.yaml
+  - include:
+      file: db/migration/db.changelog-004-cards-owner-restrict.yaml

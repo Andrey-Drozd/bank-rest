@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-seed-demo-users
+      author: andrey
+      context: local,test
+      preConditions:
+        onFail: MARK_RAN
+        sqlCheck:
+          expectedResult: 0
+          sql: SELECT COUNT(*) FROM users WHERE email IN ('admin@bankcards.local', 'user@bankcards.local')
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO users (username, email, password, first_name, last_name, enabled, deleted, created_at, updated_at)
+              VALUES
+                ('admin', 'admin@bankcards.local', '$2a$10$JbR98YoPo.YEEdKCphGjTOkj0BCNn1r34sPna6JgGTh0goiHsJjBy', 'System', 'Admin', TRUE, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                ('user', 'user@bankcards.local', '$2a$10$fEjyHRo1/7Qxm3qKtP2mSedcI4nFTTZVHCkXCLXbWlTVw2t8WzHTa', 'Demo', 'User', TRUE, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+        - sql:
+            sql: |
+              INSERT INTO user_roles (user_id, role_id)
+              VALUES
+                ((SELECT id FROM users WHERE email = 'admin@bankcards.local'), (SELECT id FROM roles WHERE name = 'ADMIN')),
+                ((SELECT id FROM users WHERE email = 'user@bankcards.local'), (SELECT id FROM roles WHERE name = 'USER'));

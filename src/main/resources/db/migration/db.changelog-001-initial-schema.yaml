@@ -1,0 +1,363 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-roles
+      author: andrey
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          tableExists:
+            tableName: roles
+      changes:
+        - createTable:
+            tableName: roles
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: description
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 002-create-users
+      author: andrey
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          tableExists:
+            tableName: users
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: username
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: email
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: password
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: first_name
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_name
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: enabled
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: deleted
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - createIndex:
+            tableName: users
+            indexName: idx_users_username
+            columns:
+              - column:
+                  name: username
+        - createIndex:
+            tableName: users
+            indexName: idx_users_email
+            columns:
+              - column:
+                  name: email
+
+  - changeSet:
+      id: 003-create-user-roles
+      author: andrey
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          tableExists:
+            tableName: user_roles
+      changes:
+        - createTable:
+            tableName: user_roles
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: role_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: user_roles
+            columnNames: user_id, role_id
+            constraintName: pk_user_roles
+        - addForeignKeyConstraint:
+            baseTableName: user_roles
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_user_roles_user
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: user_roles
+            baseColumnNames: role_id
+            referencedTableName: roles
+            referencedColumnNames: id
+            constraintName: fk_user_roles_role
+            onDelete: CASCADE
+
+  - changeSet:
+      id: 004-create-cards
+      author: andrey
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          tableExists:
+            tableName: cards
+      changes:
+        - createTable:
+            tableName: cards
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: owner_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: card_number_encrypted
+                  type: VARCHAR(512)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: card_number_hash
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: expiration_date
+                  type: DATE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: balance
+                  type: NUMERIC(19,2)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: block_requested
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: cards
+            baseColumnNames: owner_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_cards_owner
+            onDelete: CASCADE
+        - createIndex:
+            tableName: cards
+            indexName: idx_cards_owner_id
+            columns:
+              - column:
+                  name: owner_id
+        - createIndex:
+            tableName: cards
+            indexName: idx_cards_status
+            columns:
+              - column:
+                  name: status
+        - createIndex:
+            tableName: cards
+            indexName: idx_cards_owner_status
+            columns:
+              - column:
+                  name: owner_id
+              - column:
+                  name: status
+
+  - changeSet:
+      id: 005-create-transfers
+      author: andrey
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          tableExists:
+            tableName: transfers
+      changes:
+        - createTable:
+            tableName: transfers
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: from_card_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: to_card_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount
+                  type: NUMERIC(19,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: transfers
+            baseColumnNames: from_card_id
+            referencedTableName: cards
+            referencedColumnNames: id
+            constraintName: fk_transfers_from_card
+            onDelete: RESTRICT
+        - addForeignKeyConstraint:
+            baseTableName: transfers
+            baseColumnNames: to_card_id
+            referencedTableName: cards
+            referencedColumnNames: id
+            constraintName: fk_transfers_to_card
+            onDelete: RESTRICT
+        - createIndex:
+            tableName: transfers
+            indexName: idx_transfers_from_card_created
+            columns:
+              - column:
+                  name: from_card_id
+              - column:
+                  name: created_at
+        - createIndex:
+            tableName: transfers
+            indexName: idx_transfers_to_card_created
+            columns:
+              - column:
+                  name: to_card_id
+              - column:
+                  name: created_at
+        - sql:
+            sql: ALTER TABLE cards ADD CONSTRAINT chk_cards_balance_non_negative CHECK (balance >= 0)
+        - sql:
+            sql: ALTER TABLE transfers ADD CONSTRAINT chk_transfers_amount_positive CHECK (amount > 0)
+        - sql:
+            sql: ALTER TABLE transfers ADD CONSTRAINT chk_transfers_distinct_cards CHECK (from_card_id <> to_card_id)
+
+  - changeSet:
+      id: 006-seed-roles
+      author: andrey
+      preConditions:
+        onFail: MARK_RAN
+        sqlCheck:
+          expectedResult: 0
+          sql: SELECT COUNT(*) FROM roles WHERE name IN ('ADMIN', 'USER')
+      changes:
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: ADMIN
+              - column:
+                  name: description
+                  value: Administrator with full card and user management access
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: USER
+              - column:
+                  name: description
+                  value: Regular user with access to owned cards and transfers

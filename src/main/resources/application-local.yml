@@ -1,0 +1,15 @@
+spring:
+  jpa:
+    show-sql: true
+  liquibase:
+    contexts: local
+
+security:
+  jwt:
+    secret: ${SECURITY_JWT_SECRET:local-jwt-secret-local-jwt-secret-123}
+  card-encryption:
+    secret: ${CARD_ENCRYPTION_SECRET:local-card-encryption-secret}
+
+logging:
+  level:
+    com.example.bankcards: DEBUG

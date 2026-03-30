@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: bankcards
+  profiles:
+    default: local
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/bankcards}
+    username: ${SPRING_DATASOURCE_USERNAME:bankcards}
+    password: ${SPRING_DATASOURCE_PASSWORD:bankcards}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  liquibase:
+    change-log: classpath:db/migration/db.changelog-master.yaml
+    enabled: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /api
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+security:
+  jwt:
+    secret: ${SECURITY_JWT_SECRET}
+    lifetime: ${SECURITY_JWT_LIFETIME:3600000}
+  card-encryption:
+    secret: ${CARD_ENCRYPTION_SECRET}
+
+app:
+  cards:
+    expiration-sync-cron: ${CARDS_EXPIRATION_SYNC_CRON:0 0 * * * *}
+
+logging:
+  level:
+    root: INFO
+    com.example.bankcards: INFO

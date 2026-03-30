@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008-add-card-number-masked
+      author: andrey
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          columnExists:
+            tableName: cards
+            columnName: card_number_masked
+      changes:
+        - addColumn:
+            tableName: cards
+            columns:
+              - column:
+                  name: card_number_masked
+                  type: VARCHAR(19)
