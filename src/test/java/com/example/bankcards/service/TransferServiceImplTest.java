@@ -98,6 +98,38 @@ class TransferServiceImplTest {
     }
 
     @Test
+    void createTransferShouldNormalizeAmountToTwoDecimals() {
+        Card fromCard = createCard(10L, "**** **** **** 1111", "100.00", CardStatus.ACTIVE, LocalDate.now().plusYears(1));
+        Card toCard = createCard(20L, "**** **** **** 2222", "40.00", CardStatus.ACTIVE, LocalDate.now().plusYears(1));
+
+        CreateTransferRequest request = new CreateTransferRequest(
+                10L,
+                20L,
+                new BigDecimal("25.126")
+        );
+
+        when(cardRepository.findAllByOwnerIdAndIdInForUpdate(7L, Set.of(10L, 20L)))
+                .thenReturn(List.of(fromCard, toCard));
+        when(cardRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(transferRepository.save(any(Transfer.class))).thenAnswer(invocation -> {
+            Transfer transfer = invocation.getArgument(0);
+            transfer.setId(100L);
+            transfer.setCreatedAt(LocalDateTime.of(2026, 3, 26, 16, 35));
+            return transfer;
+        });
+        when(cardViewHelper.resolveStatus(fromCard)).thenReturn(CardStatus.ACTIVE);
+        when(cardViewHelper.resolveStatus(toCard)).thenReturn(CardStatus.ACTIVE);
+        when(cardViewHelper.maskCardNumber(fromCard)).thenReturn("**** **** **** 1111");
+        when(cardViewHelper.maskCardNumber(toCard)).thenReturn("**** **** **** 2222");
+
+        TransferResponse response = transferService.createTransfer(7L, request);
+
+        assertThat(fromCard.getBalance()).isEqualByComparingTo("74.87");
+        assertThat(toCard.getBalance()).isEqualByComparingTo("65.13");
+        assertThat(response.amount()).isEqualByComparingTo("25.13");
+    }
+
+    @Test
     void createTransferShouldRejectSameCardTransfer() {
         CreateTransferRequest request = new CreateTransferRequest(
                 10L,
