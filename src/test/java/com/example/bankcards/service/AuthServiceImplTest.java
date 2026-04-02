@@ -121,7 +121,7 @@ class AuthServiceImplTest {
     void loginShouldAuthenticateAndReturnToken() {
         User user = user(1L, "john", "john@example.com", Set.of(role(RoleName.USER)));
 
-        when(userRepository.findByEmailAndDeletedFalse("john@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.findWithRolesByEmailAndDeletedFalse("john@example.com")).thenReturn(Optional.of(user));
         when(jwtTokenProvider.generateToken(user)).thenReturn("jwt-token");
 
         AuthResponse response = authService.login(new LoginRequest("john@example.com", "password123"));
@@ -147,7 +147,7 @@ class AuthServiceImplTest {
     void currentUserShouldReturnProfile() {
         User user = user(1L, "john", "john@example.com", Set.of(role(RoleName.ADMIN), role(RoleName.USER)));
 
-        when(userRepository.findByEmailAndDeletedFalse("john@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.findWithRolesByEmailAndDeletedFalse("john@example.com")).thenReturn(Optional.of(user));
 
         UserProfileResponse response = authService.currentUser("john@example.com");
 

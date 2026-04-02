@@ -4,7 +4,7 @@ services:
     container_name: bankcards-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-bankcards}
       POSTGRES_USER: ${POSTGRES_USER:-bankcards}
@@ -16,6 +16,28 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bankcards-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-bankcards}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-bankcards}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-bankcards}
+      SECURITY_JWT_SECRET: ${SECURITY_JWT_SECRET:-local-jwt-secret-local-jwt-secret-123}
+      SECURITY_JWT_LIFETIME: ${SECURITY_JWT_LIFETIME:-3600000}
+      CARD_ENCRYPTION_SECRET: ${CARD_ENCRYPTION_SECRET:-local-card-encryption-secret}
+      CARDS_EXPIRATION_SYNC_CRON: ${CARDS_EXPIRATION_SYNC_CRON:-0 0 * * * *}
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
 
 volumes:
   postgres-data:

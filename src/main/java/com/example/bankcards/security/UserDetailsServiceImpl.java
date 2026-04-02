@@ -15,7 +15,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) {
-        return userRepository.findByEmailAndDeletedFalse(email)
+        return userRepository.findWithRolesByEmailAndDeletedFalse(email)
                 .map(UserPrincipal::fromUser)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }

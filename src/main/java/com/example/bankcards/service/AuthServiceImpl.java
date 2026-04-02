@@ -44,7 +44,7 @@ public class AuthServiceImpl implements AuthService {
             throw new UnauthorizedException("Invalid email or password");
         }
 
-        User user = userRepository.findByEmailAndDeletedFalse(request.email())
+        User user = userRepository.findWithRolesByEmailAndDeletedFalse(request.email())
                 .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
 
         return toAuthResponse(user);
@@ -79,7 +79,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional(readOnly = true)
     public UserProfileResponse currentUser(String email) {
-        User user = userRepository.findByEmailAndDeletedFalse(email)
+        User user = userRepository.findWithRolesByEmailAndDeletedFalse(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         return toUserProfileResponse(user);

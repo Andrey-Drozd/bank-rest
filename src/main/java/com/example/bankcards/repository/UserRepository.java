@@ -1,6 +1,7 @@
 package com.example.bankcards.repository;
 
 import com.example.bankcards.entity.User;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -17,4 +18,7 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     Optional<User> findByUsernameAndDeletedFalse(String username);
 
     Optional<User> findByEmailAndDeletedFalse(String email);
+
+    @EntityGraph(attributePaths = "roles")
+    Optional<User> findWithRolesByEmailAndDeletedFalse(String email);
 }
